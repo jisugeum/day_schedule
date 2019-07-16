@@ -1,12 +1,12 @@
 import calendar
-from datetime import datetime, timedelta
-from django.shortcuts import render
-from django.http import HttpResponse
+from datetime import datetime, timedelta, date
+from django.shortcuts import render, get_object_or_404
+from django.http import HttpResponse, HttpResponseRedirect
 from django.views import generic
 from django.utils.safestring import mark_safe
 
-
 from .models import *
+from .forms import EventForm
 from .utils import Calendar
 
 def index(request):
@@ -20,8 +20,9 @@ class CalendarView(generic.ListView):
         context = super().get_context_data(**kwargs)
 
         d = get_date(self.request.GET.get('day', None))
-        cal = Calendar(d.year, d.month)
+       
         d = get_date(self.request.GET.get('month', None))
+        cal = Calendar(d.year, d.month)
         context['prev_month'] = prev_month(d)
         context['next_month'] = next_month(d)
         html_cal = cal.formatmonth(withyear=True)       
@@ -31,7 +32,8 @@ class CalendarView(generic.ListView):
 def get_date(req_day):
     if req_day:
         year, month = (int(x) for x in req_day.split('-'))
-        return date(year, month, day=1)
+        
+        return date(year, month, day = 1)
     return datetime.today()
 
 def prev_month(d):
@@ -46,3 +48,16 @@ def next_month(d):
     next_month = last + timedelta(days=1)
     month = 'month=' + str(next_month.year) + '-' + str(next_month.month)
     return month
+
+def event(request, event_id=None):
+    instance = Event()
+    if event_id:
+        instance = get_object_or_404(Event, pk=event_id)
+    else:
+        instance = Event()
+    
+    form = EventForm(request.POST or None, instance=instance)
+    if request.POST and form.is_valid():
+        form.save()
+        return HttpResponseRedirect(reverse('calender:calendar'))
+    return render(request, 'calender/event.html', {'form': form})
